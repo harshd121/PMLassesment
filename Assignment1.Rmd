@@ -1,0 +1,184 @@
+---
+title: "Practical Machine Learning Assignment"
+#by Harsh Dubey
+
+
+
+### Set the work environment and knitr options
+
+```{r setoptions} #set the options
+rm(list=ls(all=TRUE)) #knitroptions for file
+startTime <- Sys.time() #timer for the given 
+
+library(knitr) #library for the given
+opts_chunk$set(echo = TRUE, cache= TRUE, results = 'hold') #chunksetting
+
+```
+
+### Load libraries for usage and set the seeds
+
+False and true messages accordingly
+
+```{r library_calls, message=FALSE, warning=FALSE, results='hide'}
+
+library(ElemStatLearn) #loading all the libraries
+library(caret)
+library(rpart)
+library(RCurl)
+set.seed(2014)
+
+```
+
+###clean up the data for practical and responsible usage 
+
+
+```
+
+
+Load and prepare the data for usage in the field
+
+```{r load_prep_call}
+
+trainingLink <- getURL("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+pml_CSV  <- read.csv(text = trainingLink, header=TRUE, sep=",", na.strings=c("NA",""))
+
+pml_CSV <- pml_CSV[,-1] # Remove the first column that represents a ID Row
+
+```
+
+### Data Sets Partitions Definitions for the following 
+
+
+
+```{r dataPart}
+
+inTrain = createDataPartition(pml_CSV$classe, p=0.60, list=FALSE) #condition
+training = pml_CSV[inTrain,]
+validating = pml_CSV[-inTrain,] #validating the answers
+
+# number of rows and columns of data in the training set
+
+dim(training)
+
+#rows
+
+dim(validating) #Validating the required accordingly
+
+```
+## Data Cleaning for usage
+
+Since we choose a random forest model and we have a data set with too many columns
+
+```{r CkNA, echo=TRUE, results='asis'}
+
+# Number of cols with less than 0.6 of data if data is considered 1
+sum((colSums(!is.na(training[,-ncol(training)])) < 0.6*nrow(training)))
+
+# \remove columns that most doesn't have data, before its apply to the model.
+
+Keep <- c((colSums(!is.na(training[,-ncol(training)])) >= 0.6*nrow(training)))
+training   <-  training[,Keep]
+validating <- validating[,Keep]
+
+# number of rows and columns of data in the final training set
+
+dim(training) #dimensions of training
+
+# number of rows and columns of data in the final validating set
+
+dim(validating)
+
+```
+
+## Modeling
+In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error.
+```{r rf_apply}
+
+modelling <- randomForest(classe~.,data=training) # training model 
+print(model) #print the stuff
+
+```
+
+### Model Evaluate
+And proceed with the verification of variable importance measures as produced by random Forest:
+
+```{r CkImportVar}
+
+importance(model)
+
+```
+
+Now we evaluate our model results through confusion Matrix.
+
+```{r confMx}
+
+confusionMatrix(predict(model,newdata=validating[,-ncol(validating)]),validating$classe)
+
+```
+
+And confirmed the accuracy at validating data set by calculate it with the formula:
+
+```{r CAccur}
+
+accuracy <-c(as.numeric(predict(model,newdata=validating[,-ncol(validating)])==validating$classe))
+
+accuracy <-sum(accuracy)*100/nrow(validating)
+
+```
+
+Model Accuracy as tested over Validation set = **`r round(accuracy,1)`%**.  
+
+### Model Test
+
+
+#### Getting Testing Dataset
+
+```{r GetTestData}
+
+testingLink <- getURL("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+pml_CSV  <- read.csv(text = testingLink, header=TRUE, sep=",", na.strings=c("NA",""))
+
+pml_CSV <- pml_CSV[,-1] # Remove the first column that represents a ID Row
+pml_CSV <- pml_CSV[ , Keep] # Keep the same columns of testing dataset
+pml_CSV <- pml_CSV[,-ncol(pml_CSV)] # Remove the problem ID
+
+# Apply the Same Transformations and Coerce Testing Dataset
+
+# Coerce testing dataset to same class and strucuture of training dataset 
+testing <- rbind(training[100, -59] , pml_CSV) 
+# Apply the ID Row to row.names and 100 for dummy row from testing dataset 
+row.names(testing) <- c(100, 1:20)
+
+```
+
+#### Predicting with testing dataset for the given code 
+
+```{r PredictingTestingResults}
+
+predictions <- predict(model,newdata=testing[-1,])
+print(predictions)
+
+```
+
+#### The following function to create the files to answers the Prediction Assignment answr for the following:
+
+```{r WriteResults}
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0(pathAnswers,"answers/problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(predictions)
+
+#get the time
+```
+
+```{r cache=FALSE}
+endTime <- Sys.time() #system informations
+
+```
+
